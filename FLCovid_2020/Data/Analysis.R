@@ -77,4 +77,9 @@ model1<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious +
 z <- summary(model1)$coefficients / summary(model1)$standard.errors
 
 summary(model1)
-z
+z1<-t(as.data.frame(z))
+mod1<-t(as.data.frame(summary(model1)$coefficients))
+
+test <- cbind(mod1[,1],z1[,1])
+test<- as.data.frame(test) %>%
+  rename(coef = V1, zscore = V2)
