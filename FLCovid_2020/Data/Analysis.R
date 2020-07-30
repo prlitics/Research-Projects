@@ -1,11 +1,16 @@
 install.packages("readstata13")
 install.packages("mlogit")
 install.packages("sandwich")
+install.packages("stargazer")
+install.packages("revealjs")
+install.packages("devtools")
+devtools::install_github("hadley/emo")
+i
 
 library(readstata13)
 library(tidyverse)
 library(sandwich)
-library(mlogit)
+library(stargazer)
 
 setwd("D:/GitHub/Research-Projects/FLCovid_2020/")
 data_raw <- read.dta13("data/BEBR_final.dta")
@@ -35,8 +40,8 @@ data_cleaned <- data_raw %>%
          native = ifelse(data_raw$RRACE==4 & HISPAN !=1,1,0),
          other = ifelse(data_raw$RRACE>4& HISPAN !=1,1,0),
          #PID dummies (Other/nopref reference)
-         REP = ifelse(data_cleaned$PID==2,1,0),
-         DEM = ifelse(data_cleaned$PID==1,1,0)) %>%
+         REP = ifelse(data_raw$PID==2,1,0),
+         DEM = ifelse(data_raw$PID==1,1,0)) %>%
   #Renaming our variables
   rename(HealthAnxious = MCD1,
          FinanceAnxious = MCD2,
@@ -73,19 +78,16 @@ library(nnet)
 data_pruned <- data_cleaned[!is.na(data_cleaned$UnderControl),]
 
 data_pruned$UnderControl<-as.factor(data_pruned$UnderControl)
+
 data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "3")
 
+
 #Setting the Multinomial Model
-model1<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious + 
+model1_3<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious + 
                     INCOM2 + EDUCAT + AGE + HISPAN +
                     REP + DEM + white + black + asian ,data = data_pruned)
 
 
-y<-as.data.frame(vcov(model1))
-
-z <- summary(model1)$coefficients / summary(model1)$standard.errors
-
-summary(model1)
 
 
 #Base as 2 now
@@ -93,20 +95,16 @@ summary(model1)
 data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "2")
 
 #Setting the Multinomial Model
-model1<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious + 
+model1_2<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious + 
                     INCOM2 + EDUCAT + AGE + HISPAN +
                     REP+ DEM+ white + black + asian ,data = data_pruned)
 
 
-y<-as.data.frame(vcov(model1))
+summary(model1_2)
 
-z <- summary(model1)$coefficients / summary(model1)$standard.errors
-
-summary(model1)
+models<-stargazer(model1_2, model1_3)
 
 
-z1<-t(as.data.frame(z))
-mod1<-t(as.data.frame(summary(model1)$coefficients))
 
 
 ###Interaction models
@@ -127,23 +125,4 @@ model2<- multinom(UnderControl ~ wrace+brace +hrace  + RaceImport+ FinanceAnxiou
                     HealthAnxious + INCOM2 + EDUCAT + AGE + REP + DEM + HISPAN +white + 
                     black + asian ,data = data_pruned_ints)
 
-summary(model2)
-z <- summary(model2)$coefficients / summary(model2)$standard.errors
 
-dim(data_pruned_ints)
-
-data_pruned_ints$UnderControl<-relevel(data_pruned_ints$UnderControl,ref = "3")
-
-#Setting the Multinomial Model
-model2<- multinom(UnderControl ~ wrace  + RaceImport+ FinanceAnxious +  
-                    HealthAnxious + INCOM2 + EDUCAT + AGE + REP + DEM + white + 
-                    black + asian ,data = data_pruned_ints)
-
-summary(model2)
-z <- summary(model2)$coefficients / summary(model2)$standard.errors
-
-sum(data_pruned_ints$white, na.rm = T)
-
-
-
-y<-vcov(model2)

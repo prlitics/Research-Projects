@@ -1,0 +1,210 @@
+---
+title: "Florida Man meets COVID-19"
+output: 
+  revealjs::revealjs_presentation:
+    theme: serif
+    highlight: pygments
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+# We've got some data!
+
+YAY! 
+
+## Main Research Question/Variable
+ Priorities for the economy versus getting the virus under control.
+
+ >- *Getting the virus under control is essential before we open up the economy*
+
+ >- *We should open the economy so that people can get back to their jobs and normal lives*
+
+ >- *[VOLUNTEERED] Both/somewhere in between*
+
+## Hypotheses & Research Questions
+
+>- Will **economic anxieties** or **health anxieties** drive people towards one of these preferences?
+
+>- Will **_racial identity considerations_** drive these preferences?
+
+
+# Exploring the Data
+## Needed R packages
+```{r packages, eval=T, echo=T, message=FALSE, warning=FALSE, include=TRUE}
+library(readstata13)
+library(tidyverse)
+library(nnet)
+library(stargazer)
+```
+
+
+## Explore the DV
+
+```{r echo=FALSE}
+setwd("D:/GitHub/Research-Projects/FLCovid_2020/")
+data_raw <- read.dta13("data/BEBR_final.dta")
+
+
+##Helper Recode Functions
+#NAing all negative values
+to_na <- function(x){
+  ifelse(x < 0, NA, x )
+  
+}
+
+#0/1 dummies.
+make_dum <- function(x){
+  ifelse(x == 2, 0 , x)
+}
+
+data_cleaned <- data_raw %>%
+  #Sets all values less than zero to NA
+  mutate(across(.cols = everything(), to_na),
+         #Dummies Sex(1=Male), Voter(1=Registered), and Hispanic(1=Hispanic)
+         across(.cols = c(ISEX, VOTER, HISPAN), make_dum),
+         #Racial Dummies (Other and mixed together; intended reference category)
+         white = ifelse(data_raw$RRACE==1 & HISPAN !=1,1,0),
+         black = ifelse(data_raw$RRACE==2 & HISPAN !=1,1,0),
+         asian = ifelse(data_raw$RRACE==3 & HISPAN !=1,1,0),
+         native = ifelse(data_raw$RRACE==4 & HISPAN !=1,1,0),
+         other = ifelse(data_raw$RRACE>4& HISPAN !=1,1,0),
+         #PID dummies (Other/nopref reference)
+         REP = ifelse(data_raw$PID==2,1,0),
+         DEM = ifelse(data_raw$PID==1,1,0)) %>%
+  #Renaming our variables
+  rename(HealthAnxious = MCD1,
+         FinanceAnxious = MCD2,
+         UnderControl = MCD3,
+         RaceImport = MCD4)
+
+
+
+
+#Take a look at distribution of answers on the DV of interest
+
+#Data labels
+whatdo<-c("1" ="Getting the virus\nunder control is\n essential before\nwe open up\nthe economy",
+          "2" = "We should open\nthe economy so that\n people can get\nback to their\n jobs and\nnormal lives",
+          "3" = "Both/somewhere\nin between \n[Volunteered]")
+
+(p1<-ggplot()+geom_bar(data = filter(data_cleaned, !is.na(UnderControl)),
+                       aes(x=as.factor(UnderControl)), fill = "#84CEFF" )+theme_minimal()+
+  scale_x_discrete(labels = whatdo, name = "")+
+    labs(y = "Number of\nRespondents", 
+         title = " Floridians' Thoughts on Whether\nto Prioritize Virus vs. Economy")+
+    theme(axis.title.y = element_text(hjust = 1, angle = 0, size = 8),
+          plot.title = element_text(hjust = .5)) )
+```
+
+## Explore the IVs
+
+```{r,results = 'asis'}
+stargazer(data_cleaned[c("white","HISPAN","EDUCAT","INCOM2", "black","asian","native","other","REP","DEM","HealthAnxious","FinanceAnxious","UnderControl","RaceImport")], type = "html", digits = 2)
+```
+
+
+## Here be Coding
+
+##Import the data
+```{r import, eval=F, echo=T, include=TRUE}
+setwd("D:/GitHub/Research-Projects/FLCovid_2020/")
+data_raw <- read.dta13("data/BEBR_final.dta")
+
+```
+
+## Cleaning 
+```{r clean, eval=F, echo=T, include=TRUE}
+to_na <- function(x){
+  ifelse(x < 0, NA, x )
+  
+}
+
+#0/1 dummies.
+make_dum <- function(x){
+  ifelse(x == 2, 0 , x)
+}
+
+data_cleaned <- data_raw %>%
+  #Sets all values less than zero to NA
+  mutate(across(.cols = everything(), to_na),
+         #Dummies Sex(1=Male), Voter(1=Registered), and Hispanic(1=Hispanic)
+         across(.cols = c(ISEX, VOTER, HISPAN), make_dum),
+         #Racial Dummies (Other and mixed together; intended reference category)
+         white = ifelse(data_raw$RRACE==1 & HISPAN !=1,1,0),
+         black = ifelse(data_raw$RRACE==2 & HISPAN !=1,1,0),
+         asian = ifelse(data_raw$RRACE==3 & HISPAN !=1,1,0),
+         native = ifelse(data_raw$RRACE==4 & HISPAN !=1,1,0),
+         other = ifelse(data_raw$RRACE>4& HISPAN !=1,1,0),
+         #PID dummies (Other/nopref reference)
+         REP = ifelse(data_cleaned$PID==2,1,0),
+         DEM = ifelse(data_cleaned$PID==1,1,0)) %>%
+  #Renaming our variables
+  rename(HealthAnxious = MCD1,
+         FinanceAnxious = MCD2,
+         UnderControl = MCD3,
+         RaceImport = MCD4)
+
+
+```
+
+
+# Modeling
+
+>- If only a few people picked both then we could probably just nix them and do logit.
+
+>- So many people are doing it though, and these are categorical in nature, so we're gonna need a model that accomodates that.
+
+>- Enter: Multinomial Logit
+
+## But first... -.-
+
+If you don't remove the NAs, then it's considered a "factor" 
+
+```{r pruning, echo=T, eval=F, include=TRUE}
+data_pruned <- data_cleaned[!is.na(data_cleaned$UnderControl),]
+data_pruned$UnderControl<-as.factor(data_pruned$UnderControl)
+data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "3")
+```
+
+## Four models (Different Bases & Interactions)
+
+##Non-interaction (Open up as Base)
+```{r include=FALSE}
+data_pruned <- data_cleaned[!is.na(data_cleaned$UnderControl),]
+
+data_pruned$UnderControl<-as.factor(data_pruned$UnderControl)
+
+data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "3")
+
+
+#Setting the Multinomial Model
+model1_3<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious + 
+                    INCOM2 + EDUCAT + AGE + HISPAN +
+                    REP + DEM + white + black + asian ,data = data_pruned)
+
+
+
+
+#Base as 2 now
+
+data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "2")
+
+#Setting the Multinomial Model
+model1_2<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious + 
+                    INCOM2 + EDUCAT + AGE + HISPAN +
+                    REP+ DEM+ white + black + asian ,data = data_pruned)
+
+```
+
+```{r, results='asis'}
+stargazer(model1_2, column.sep.width = "1pt", font.size = "tiny" ,single.row = T, type = "html", style = "ajps", column.labels = c("Virus Under Control", "Both"),dep.var.labels.include = FALSE,
+          model.numbers          = FALSE)
+```
+
+## Non-interaction (Both as Base)
+```{r,  results='asis'}
+stargazer(model1_3, column.sep.width = "1pt", font.size = "tiny" ,single.row = T, type = "html", style = "ajps", column.labels = c("Virus Under Control", "Open Economy"),dep.var.labels.include = FALSE,
+          model.numbers          = FALSE)
+```
+
