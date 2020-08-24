@@ -10,23 +10,49 @@ output:
 knitr::opts_chunk$set(echo = FALSE)
 ```
 # We've got some data!
+<style type="text/css">
+  .reveal p {
+    text-align: left;
+  }
+  .reveal ul {
+    display: block;
+  }
+  .reveal ol {
+    display: block;
+  }  
+</style>
+
 
 YAY! 
 
 ## Main Research Question/Variable
+<style type="text/css">
+  .reveal p {
+    text-align: left;
+  }
+  .reveal ul {
+    display: block;
+  }
+  .reveal ol {
+    display: block;
+  }  
+</style>
+
  Priorities for the economy versus getting the virus under control.
 
- >- *Getting the virus under control is essential before we open up the economy*
 
- >- *We should open the economy so that people can get back to their jobs and normal lives*
+>-  *Getting the virus under control is essential before we open up the economy*
 
- >- *[VOLUNTEERED] Both/somewhere in between*
+>- *We should open the economy so that people can get back to their jobs and normal lives*
+ 
+>- *[VOLUNTEERED] Both/somewhere in between*
 
 ## Hypotheses & Research Questions
 
 >- Will **economic anxieties** or **health anxieties** drive people towards one of these preferences?
 
 >- Will **_racial identity considerations_** drive these preferences?
+
 
 
 # Exploring the Data
@@ -169,7 +195,8 @@ data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "3")
 
 ## Four models (Different Bases & Interactions)
 
-##Non-interaction (Open up as Base)
+## Non-interaction (Open up as Base)
+
 ```{r include=FALSE}
 data_pruned <- data_cleaned[!is.na(data_cleaned$UnderControl),]
 
@@ -208,3 +235,45 @@ stargazer(model1_3, column.sep.width = "1pt", font.size = "tiny" ,single.row = T
           model.numbers          = FALSE)
 ```
 
+## Interactions (Open up as Base)
+
+```{r, include=FALSE}
+data_pruned_ints<-data_pruned %>%
+  mutate(RaceImport = -1*(RaceImport-1),
+         wrace = white * RaceImport,
+         brace = black * RaceImport,
+         hrace = HISPAN * RaceImport)
+
+
+data_pruned_ints <- data_pruned_ints[!is.na(data_pruned_ints$UnderControl),]
+data_pruned_ints$UnderControl<-as.factor(data_pruned_ints$UnderControl)
+data_pruned_ints$UnderControl<-relevel(data_pruned_ints$UnderControl,ref = "2")
+
+model2_1<- multinom(UnderControl ~ wrace+brace +hrace  + RaceImport+ FinanceAnxious +   
+                    HealthAnxious + INCOM2 + EDUCAT + AGE + REP + DEM + HISPAN +white + 
+                    black + asian ,data = data_pruned_ints)
+
+data_pruned_ints$UnderControl<-relevel(data_pruned_ints$UnderControl,ref = "2")
+
+model2_2<- multinom(UnderControl ~ wrace+brace +hrace  + RaceImport+ FinanceAnxious +   
+                      HealthAnxious + INCOM2 + EDUCAT + AGE + REP + DEM + HISPAN +white + 
+                      black + asian ,data = data_pruned_ints)
+
+
+```
+
+
+```{r,  results='asis'}
+stargazer(model2_1, column.sep.width = "1pt", font.size = "tiny" ,single.row = T, type = "html", style = "ajps", column.labels = c("Virus Under Control", "Both"),dep.var.labels.include = FALSE,
+          model.numbers          = FALSE)
+```
+
+## Interactions (Both as Base)
+```{r,  results='asis'}
+stargazer(model2_1, column.sep.width = "1pt", font.size = "tiny" ,single.row = T, type = "html", style = "ajps", column.labels = c("Virus Under Control", "Open Economy"),dep.var.labels.include = FALSE,
+          model.numbers          = FALSE)
+```
+
+# Conclulsions
+>- Racial identity didn't seem to be significant in this sample
+>- Most important aspects were whether or not people were anxious about the economy.

@@ -58,13 +58,13 @@ whatdo<-c("1" ="Getting the virus\nunder control is\n essential before\nwe open 
           "2" = "We should open\nthe economy so that\n people can get\nback to their\n jobs and\nnormal lives",
           "3" = "Both/somewhere\nin between \n[Volunteered]")
 
-(p1<-ggplot()+geom_bar(data = filter(data_cleaned, !is.na(UnderControl)),
+p1<-ggplot()+geom_bar(data = filter(data_cleaned, !is.na(UnderControl)),
                        aes(x=as.factor(UnderControl)), fill = "#84CEFF" )+theme_minimal()+
   scale_x_discrete(labels = whatdo, name = "")+
     labs(y = "Number of\nRespondents", 
          title = " Floridians' Thoughts on Whether\nto Prioritize Virus vs. Economy")+
     theme(axis.title.y = element_text(hjust = 1, angle = 0, size = 8),
-          plot.title = element_text(hjust = .5)) )
+          plot.title = element_text(hjust = .5))+ facet_wrap(~HealthAnxious) 
 
 
 #Loading in the library for multinomial logistic regression.
@@ -121,8 +121,12 @@ data_pruned_ints$UnderControl<-as.factor(data_pruned_ints$UnderControl)
 data_pruned_ints$UnderControl<-relevel(data_pruned_ints$UnderControl,ref = "2")
 
 #Setting the Multinomial Model
-model2<- multinom(UnderControl ~ wrace+brace +hrace  + RaceImport+ FinanceAnxious +   
+model2_1<- multinom(UnderControl ~ wrace+brace +hrace  + RaceImport+ FinanceAnxious +   
                     HealthAnxious + INCOM2 + EDUCAT + AGE + REP + DEM + HISPAN +white + 
                     black + asian ,data = data_pruned_ints)
 
+data_pruned_ints$UnderControl<-relevel(data_pruned_ints$UnderControl,ref = "2")
 
+model2_2<- multinom(UnderControl ~ wrace+brace +hrace  + RaceImport+ FinanceAnxious +   
+                      HealthAnxious + INCOM2 + EDUCAT + AGE + REP + DEM + HISPAN +white + 
+                      black + asian ,data = data_pruned_ints)
