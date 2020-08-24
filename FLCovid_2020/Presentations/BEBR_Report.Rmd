@@ -1,0 +1,203 @@
+---
+title: 'Open-Up or Hunker-Down: What was driving Floridians'' preference on how to
+  tackle COVID-19?'
+author:
+- Peter Licari
+- Michael Martinez
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r data, message=FALSE, warning=FALSE, include=FALSE}
+library(readstata13)
+library(tidyverse)
+library(gridExtra)
+library(grid)
+setwd("D:/GitHub/Research-Projects/FLCovid_2020/")
+data_raw <- read.dta13("data/BEBR_final.dta")
+
+
+##Helper Recode Functions
+#NAing all negative values
+to_na <- function(x){
+  ifelse(x < 0, NA, x )
+  
+}
+
+#0/1 dummies.
+make_dum <- function(x){
+  ifelse(x == 2, 0 , x)
+}
+
+data_cleaned <- data_raw %>%
+  #Sets all values less than zero to NA
+  mutate(across(.cols = everything(), to_na),
+         #Dummies Sex(1=Male), Voter(1=Registered), and Hispanic(1=Hispanic)
+         across(.cols = c(ISEX, VOTER, HISPAN), make_dum),
+         #Racial Dummies (Other and mixed together; intended reference category)
+         white = ifelse(data_raw$RRACE==1 & HISPAN !=1,1,0),
+         black = ifelse(data_raw$RRACE==2 & HISPAN !=1,1,0),
+         asian = ifelse(data_raw$RRACE==3 & HISPAN !=1,1,0),
+         native = ifelse(data_raw$RRACE==4 & HISPAN !=1,1,0),
+         other = ifelse(data_raw$RRACE>4& HISPAN !=1,1,0),
+         #PID dummies (Other/nopref reference)
+         REP = ifelse(data_raw$PID==2,1,0),
+         DEM = ifelse(data_raw$PID==1,1,0),
+         group = 1) %>%
+  #Renaming our variables
+  rename(HealthAnxious = MCD1,
+         FinanceAnxious = MCD2,
+         UnderControl = MCD3,
+         RaceImport = MCD4)
+
+
+
+
+#Take a look at distribution of answers on the DV of interest
+
+#Data labels
+whatdo<-c("1" ="Getting the virus\nunder control is\nessential",
+          "2" = "We should open\nthe economy",
+          "3" = "Both/somewhere\nin between \n[Volunteered]")
+
+```
+
+## Putting Health or the Economy First?
+
+Although there was never a point where opinions were completely unified, in the early days of the Coronavirus pandemic, there *was* substantial agreement among Floridians about what should generally take precedence. [A University of North Florida poll in April showed that nearly 95 percent of Floridians were concerned about the Pandemic and nearly 80 percent were concerned about contracting it personally.](https://www.unf.edu/uploadedFiles/aa/coas/porl/UNF%20PORL%20COVID-19%20Survey(1).pdf). A Quinnipiac Poll of Floridians in April showed that roughly [70 percent wanted social distancing rules to continue into May and 75 percent of the state believed that the economy should only reopen when public health officials deemed it safe.](https://poll.qu.edu/images/polling/fl/fl04222020_fkhc64.pdf). The consensus point, then, was that the virus needed to be under control before we could restart the economy.   
+
+Come early summer, though, the situation had changed and had become immensely more complex. As the weeks wore on, the economic devastation deepened. Come June, Florida's unemployment rate was over [13 percent](http://lmsresources.labormarketinfo.com/library/press/release.pdf). Small and local businesses across the state were closing down permanently having exhausted the emergency small business and payment protection loans---[if they were lucky enough to even get them at all](https://www.miamiherald.com/news/business/article242054606.html). But at the same time, the virus was raging. Despite early optimism, [new cases began picking back up in May and skyrocketing in June](https://www.nytimes.com/interactive/2020/us/florida-coronavirus-cases.html#cases). In this environment, where it seemed that state and national officials had prioritized *neither* health or economic recovery, what were Floridians prioritizing? And what mattered more in their decision-making: financial or health concerns?
+
+## How We Investigated the Question.
+
+In June of 2020, BEBR generously let us tack on a few questions to their consumer confidence survey. We asked 474 Floridians three questions. One that looked at how anxious Covid-19 made respondents feel about their family's health and how anxious they felt about their family's financial situation. We also asked them which of the following statements they most agreed with:
+
+- Getting the virus under control is essential before we open up the economy. 
+- We should open the economy so that people can get back to their jobs and normal lives.
+
+They could also volunteer that **both** were equally important and/or that we should strive for something in between. 
+
+## What were Floridian's Preferences About Re-Opening? 
+
+Most Floridians in our sample (50 percent) felt that the state should prioritize getting the virus under control. Just under 30 percent felt that reopening the economy ought to be the greatest priority. However, a full fifth of Floridians sampled (21 percent) believed that some middle course ought to be prioritized. This is a fairly large proportion of the sample; it's not uncommon in survey research for a few respondents to volunteer an answer that wasn't initially offered to them by the interviewer. It **is** uncommon for *so many people to do so.* The fact that they did shows just how salient both health and economic concerns were for the average Floridian.
+
+<center>
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+p1<-ggplot(data = filter(data_cleaned, !is.na(UnderControl)),
+                       aes(x= group, y = ..count../453,  fill = as.factor(UnderControl)))+geom_bar(position = position_fill(reverse = TRUE), width = .5)+ geom_text(stat = "count", aes(label=( paste0((round(((..count..)/453), digits = 2)*100),"%")  )), size = 3, position = position_stack(vjust = .5, reverse = TRUE), color = "black")+
+  theme_minimal()+ coord_flip() + scale_x_discrete( name = "") + 
+  scale_fill_manual(labels = whatdo, values = c("#9EADBD", "#91CDFF", "#3A4856")) +
+  scale_y_continuous(labels = scales::percent)+
+    labs(title = "Most Floridians preferred to \nto prioritize the virus over the economy",
+         y = "", fill = "")+
+    theme(axis.title.y = element_text(hjust = 1, angle = 0, size = 8),,
+          plot.title = element_text(hjust = .5),
+          legend.position = "bottom",
+          legend.title.align = .5,
+          legend.key.size = unit(2, "cm"),
+          legend.key.height = unit(1.5, "cm"), 
+          aspect.ratio = .3) +
+  guides(fill = guide_legend(title.position = "top"))
+
+ggsave("pic1.png")
+p1
+```
+
+
+## What Mattered More in Driving These Preferences: Health or Finances?
+
+What made people more likely to say that they prioritized the economy versus getting the virus under control---or picking an answer in between? Or was it how anxious they were about their family's financial situation? Was it how anxious they were about their family's health? 
+
+As the figure below shows, the more anxious respondents were about their family's health, the more likely it was that they would insist that the virus needs to be under control---and the less likely it was that they would say that we should open-up the economy. Of those who were "not at all anxious" about their family's health, about 35 percent prioritized getting the virus under control and roughly 55 percent prioritized the economy. But for those "very anxious" about their family's health, **65 percent** of respondents said that the virus needed to get under control while on ly **19** said we should re-open the economy. Each increment up the anxiety scale, respondents were substantially more likely to prefer getting the virus under control versus re-opening the economy or volunteering both as equally important. 
+
+
+
+<center>
+```{r echo=FALSE}
+data_cleaned1 <- data_cleaned %>%
+  filter(!is.na(UnderControl)) %>%
+  filter(!is.na(HealthAnxious)) %>%
+  group_by(HealthAnxious) %>%
+  mutate(health_sum = n())
+
+data_cleaned2 <- data_cleaned %>%
+  filter(!is.na(UnderControl)) %>%
+  filter(!is.na(FinanceAnxious)) %>%
+  group_by(FinanceAnxious) %>%
+  mutate(finance_sum = n())
+
+divideh<-c(83,83,83,158,158,158,93,93,93,113,113,113)
+dividef<-c(133,133,133,124,124,124,85,85,85,101,101,101)
+
+lbls<- c("1" = "Not at all anxious", "2" = "Somewhat anxious", "3" = "Anxious", "4" = "Very anxious")
+
+# https://statisticsglobe.com/add-common-legend-to-combined-ggplot2-plots-in-r/
+extract_legend <- function(my_ggp) {
+  step1 <- ggplot_gtable(ggplot_build(my_ggp))
+  step2 <- which(sapply(step1$grobs, function(x) x$name) == "guide-box")
+  step3 <- step1$grobs[[step2]]
+  return(step3)
+}
+
+
+p2<-ggplot(data = data_cleaned1,
+                       aes(x= group, y = ..count../divideh,  fill = as.factor(UnderControl)))+geom_bar(position = position_fill(reverse = TRUE), width = 10)+ geom_text(stat = "count", aes(label=( paste0((round(((..count..)/divideh), digits = 2)*100),"%")  )), size = 3, position = position_stack(vjust = .5, reverse = TRUE), color = "black")+
+  theme_minimal()+ coord_flip() + scale_x_discrete( name = "") + 
+  scale_fill_manual(labels = whatdo, values = c("#9EADBD", "#91CDFF", "#3A4856")) +
+  scale_y_continuous(labels = scales::percent)+
+    labs(title = "HEALTH", x = "", y ="", fill = "")+
+    theme(axis.title.y = element_text(hjust = 1, angle = 0, size = 8),,
+          plot.title = element_text(hjust = .5),
+          legend.position = "bottom",
+          legend.title.align = .5,
+          legend.key.size = unit(2, "cm"),
+          legend.key.height = unit(1.5, "cm")) +
+  guides(fill = guide_legend(title.position = "bottom"))+ 
+  facet_wrap(~HealthAnxious, ncol = 1, labeller = labeller(HealthAnxious = lbls)) + theme(aspect.ratio = .08) +
+  guides(fill = guide_legend(keyheight = unit(2, "points"), title.position = "bottom"))
+
+
+leg<-extract_legend(p2)
+
+p2a<-p2+theme(legend.position = "none")
+
+p2b<-ggplot(data = data_cleaned2,
+                       aes(x= group, y = ..count../dividef,  fill = as.factor(UnderControl)))+geom_bar(position = position_fill(reverse = TRUE), width = 10)+ geom_text(stat = "count", aes(label=( paste0((round(((..count..)/dividef), digits = 2)*100),"%")  )), size = 3, position = position_stack(vjust = .5, reverse = TRUE), color = "black")+
+  theme_minimal()+ coord_flip() + scale_x_discrete( name = "") + 
+  scale_fill_manual(labels = whatdo, values = c("#9EADBD", "#91CDFF", "#3A4856")) +
+  scale_y_continuous(labels = scales::percent)+
+    labs(title = "FINANCES", x = "", y ="", fill = "")+
+    theme(axis.title.y = element_text(hjust = 1, angle = 0, size = 8),,
+          plot.title = element_text(hjust = .5),
+          legend.position = "none",
+          aspect.ratio = .08) +
+  guides(fill = guide_legend(title.position = "bottom"))+ 
+  facet_wrap(~FinanceAnxious, ncol = 1, labeller = labeller(FinanceAnxious = lbls)) + theme() +
+  guides(fill = guide_legend(keyheight = unit(2, "points"), title.position = "bottom"))
+
+grid.arrange(arrangeGrob(p2a,p2b, ncol = 2), leg, nrow = 2, heights = c(10,1),
+             top = textGrob("How anxious respondents were about their family's...",
+                            gp=gpar(fontsize=20)))
+
+```
+</center>
+
+
+But the same cannot be said for those who were anxious about their family's finances. While there was a noticeable difference in the preferences of those those who weren't anxious at all compared to those who were "somewhat" anxious---past that point, increased levels of anxiety did not change respondents' attitudes much. The differences between those "somewhat" and the "very" anxious were not that large: roughly five percentage points at most. If financial anxieties grow but preferences aren't shifting, then financial anxieties aren't likely a major cause driving those preferences. This suggests that respondent's anxieties about their family's health had more leverage in guiding their preferences on what should be prioritized in the pandemic.
+
+We found similar results when we investigated this question after controlling for factors that could affect reopening preferences and both breeds of anxiousness such as age, education, income, race, sex, and party identification. We used a statistical model that is specifically tailored towards analyzing things like respondent preferences.^[We specified a [multinomial logistic regression](https://en.wikipedia.org/wiki/Multinomial_logistic_regression) model using the `nnet` package in R.] These models found:
+
+  1. Having greater health anxiety made people **significantly more likely** to prefer getting the virus under control versus re-opening the economy. 
+  2. Having greater health anxiety made people **significantly more likely** to prefer doing a mixture of things versus solely focusing on re-opening the economy.
+  3. Higher health anxiety made people **more likely _(but not significantly)_** to prefer getting the virus under control to both.
+  4. Higher financial anxiety was **not significantly associated with holding any preference over another.** 
+
+## For most, the virus (and their family's health) take precedence.
+
+As we enter the sixth month of emergency measures enacted to combat the virus, our recent survey of Floridians suggests that the majority of people either prefer to get the virus entirely under control or to find a middle way between doing so and restarting the economy. In total, these two positions constituted nearly 70 percent of respondents. Only about 30 percent believed that the economy should take sole precedence. And although the virus is causing both public health and economic issues, it appears that preferences are predominantly driven by concerns about their family's health rather than their family's finances. That's not to say that financial concerns aren't looming large in the minds of many; the economic devastation felt across the state is real, incontrovertible, and undeniably painful. But, as real as it is, it does not seem to be the foremost factor driving Floridian's preferences on how we ought to the tackle the pandemic. 
