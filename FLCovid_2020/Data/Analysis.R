@@ -9,7 +9,6 @@ i
 
 library(readstata13)
 library(tidyverse)
-library(sandwich)
 library(stargazer)
 
 setwd("D:/GitHub/Research-Projects/FLCovid_2020/")
@@ -70,7 +69,6 @@ p1<-ggplot()+geom_bar(data = filter(data_cleaned, !is.na(UnderControl)),
 #Loading in the library for multinomial logistic regression.
 library(nnet)
 
-
 #Turn it into a factor and relevel so 3 is base
 
 #Gotta prune NAs or else they become their own factor -.-
@@ -89,7 +87,6 @@ model1_3<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious +
 
 
 
-
 #Base as 2 now
 
 data_pruned$UnderControl<-relevel(data_pruned$UnderControl,ref = "2")
@@ -102,7 +99,7 @@ model1_2<- multinom(UnderControl ~ FinanceAnxious + HealthAnxious +
 
 summary(model1_2)
 
-models<-stargazer(model1_2, model1_3)
+
 
 
 
